@@ -1,0 +1,9 @@
+2025-12-22 19:45:14,155 - INFO - ===== Inicio ETL address_bar_url =====
+2025-12-22 19:45:14,155 - INFO - Iniciando conexiones a las bases de datos (address_bar_url)
+2025-12-22 19:45:14,230 - INFO - Conexiones establecidas correctamente (address_bar_url)
+2025-12-22 19:45:14,231 - INFO - [address_bar_url] Buscando filas pendientes (limite=500)
+2025-12-22 19:45:14,231 - INFO - [address_bar_url] Filas pendientes encontradas: 0
+2025-12-22 19:45:14,231 - INFO - [address_bar_url] No hay filas pendientes para procesar
+2025-12-22 19:45:14,231 - INFO - ETL address_bar_url finalizado. Total de filas procesadas: 0
+2025-12-22 19:45:14,231 - INFO - Cerrando conexiones a las bases de datos (address_bar_url)
+2025-12-22 19:45:14,233 - INFO - ===== Fin ETL address_bar_url =====

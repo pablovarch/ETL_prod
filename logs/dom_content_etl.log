@@ -1,0 +1,9 @@
+2025-12-22 19:45:14,562 - INFO - ===== Inicio ETL dom_content =====
+2025-12-22 19:45:14,562 - INFO - Iniciando conexiones a las bases de datos (dom_content)
+2025-12-22 19:45:14,662 - INFO - Conexiones establecidas correctamente (dom_content)
+2025-12-22 19:45:14,664 - INFO - [dom_content] Buscando filas pendientes (limite=500)
+2025-12-22 19:45:14,665 - INFO - [dom_content] Filas pendientes encontradas: 0
+2025-12-22 19:45:14,665 - INFO - [dom_content] No hay filas pendientes para procesar
+2025-12-22 19:45:14,665 - INFO - ETL dom_content finalizado. Total de filas procesadas: 0
+2025-12-22 19:45:14,665 - INFO - Cerrando conexiones a las bases de datos (dom_content)
+2025-12-22 19:45:14,667 - INFO - ===== Fin ETL dom_content =====

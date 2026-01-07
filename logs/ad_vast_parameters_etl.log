@@ -1,0 +1,9 @@
+2025-12-22 19:45:14,081 - INFO - ===== Inicio ETL ad_vast_parameters =====
+2025-12-22 19:45:14,081 - INFO - Iniciando conexiones a las bases de datos (ad_vast_parameters)
+2025-12-22 19:45:14,152 - INFO - Conexiones establecidas correctamente (ad_vast_parameters)
+2025-12-22 19:45:14,152 - INFO - [ad_vast_parameters] Buscando filas pendientes (limite=500)
+2025-12-22 19:45:14,153 - INFO - [ad_vast_parameters] Filas pendientes encontradas: 0
+2025-12-22 19:45:14,153 - INFO - [ad_vast_parameters] No hay filas pendientes para procesar
+2025-12-22 19:45:14,153 - INFO - ETL ad_vast_parameters finalizado. Total de filas procesadas: 0
+2025-12-22 19:45:14,153 - INFO - Cerrando conexiones a las bases de datos (ad_vast_parameters)
+2025-12-22 19:45:14,154 - INFO - ===== Fin ETL ad_vast_parameters =====

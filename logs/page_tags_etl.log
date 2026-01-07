@@ -1,0 +1,9 @@
+2025-12-22 19:45:14,299 - INFO - ===== Inicio ETL page_tags =====
+2025-12-22 19:45:14,299 - INFO - Iniciando conexiones a las bases de datos (page_tags)
+2025-12-22 19:45:14,363 - INFO - Conexiones establecidas correctamente (page_tags)
+2025-12-22 19:45:14,363 - INFO - [page_tags] Buscando filas pendientes (limite=500)
+2025-12-22 19:45:14,366 - INFO - [page_tags] Filas pendientes encontradas: 0
+2025-12-22 19:45:14,366 - INFO - [page_tags] No hay filas pendientes para procesar
+2025-12-22 19:45:14,366 - INFO - ETL page_tags finalizado. Total de filas procesadas: 0
+2025-12-22 19:45:14,366 - INFO - Cerrando conexiones a las bases de datos (page_tags)
+2025-12-22 19:45:14,367 - INFO - ===== Fin ETL page_tags =====

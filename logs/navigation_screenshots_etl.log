@@ -1,0 +1,9 @@
+2025-12-22 19:45:14,233 - INFO - ===== Inicio ETL navigation_screenshots =====
+2025-12-22 19:45:14,234 - INFO - Iniciando conexiones a las bases de datos (navigation_screenshots)
+2025-12-22 19:45:14,298 - INFO - Conexiones establecidas correctamente (navigation_screenshots)
+2025-12-22 19:45:14,298 - INFO - [navigation_screenshots] Buscando filas pendientes (limite=500)
+2025-12-22 19:45:14,299 - INFO - [navigation_screenshots] Filas pendientes encontradas: 0
+2025-12-22 19:45:14,299 - INFO - [navigation_screenshots] No hay filas pendientes para procesar
+2025-12-22 19:45:14,299 - INFO - ETL navigation_screenshots finalizado. Total de filas procesadas: 0
+2025-12-22 19:45:14,299 - INFO - Cerrando conexiones a las bases de datos (navigation_screenshots)
+2025-12-22 19:45:14,299 - INFO - ===== Fin ETL navigation_screenshots =====

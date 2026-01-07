@@ -1,0 +1,9 @@
+2025-12-22 19:45:13,784 - INFO - ===== Inicio ETL ad_chain_content =====
+2025-12-22 19:45:13,785 - INFO - Iniciando conexiones a las bases de datos (ad_chain_content)
+2025-12-22 19:45:13,899 - INFO - Conexiones establecidas correctamente (ad_chain_content)
+2025-12-22 19:45:13,899 - INFO - [ad_chain_content] Buscando filas pendientes (limite=500)
+2025-12-22 19:45:13,908 - INFO - [ad_chain_content] Filas pendientes encontradas: 0
+2025-12-22 19:45:13,908 - INFO - [ad_chain_content] No hay filas pendientes para procesar
+2025-12-22 19:45:13,908 - INFO - ETL ad_chain_content finalizado. Total filas procesadas: 0
+2025-12-22 19:45:13,910 - INFO - Cerrando conexiones a las bases de datos (ad_chain_content)
+2025-12-22 19:45:13,911 - INFO - ===== Fin ETL ad_chain_content =====

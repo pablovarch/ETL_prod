@@ -1,0 +1,9 @@
+2025-12-22 19:45:14,668 - INFO - ===== Inicio ETL domain_attributes_sync =====
+2025-12-22 19:45:14,668 - INFO - Iniciando conexiones (domain_attributes_sync)
+2025-12-22 19:45:14,747 - INFO - Conexiones OK (domain_attributes_sync)
+2025-12-22 19:45:14,747 - INFO - [domain_attributes_sync] Buscando filas processed=false (limite=500)
+2025-12-22 19:45:14,797 - INFO - [domain_attributes_sync] Filas pendientes encontradas: 0
+2025-12-22 19:45:14,797 - INFO - [domain_attributes_sync] No hay filas pendientes para procesar
+2025-12-22 19:45:14,797 - INFO - ETL domain_attributes_sync finalizado. Total dominios: 0
+2025-12-22 19:45:14,797 - INFO - Cerrando conexiones (domain_attributes_sync)
+2025-12-22 19:45:14,797 - INFO - ===== Fin ETL domain_attributes_sync =====

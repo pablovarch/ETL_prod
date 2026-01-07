@@ -1,0 +1,9 @@
+2025-12-22 19:45:14,370 - INFO - ===== Inicio ETL browser_urls_seq =====
+2025-12-22 19:45:14,370 - INFO - Iniciando conexiones a las bases de datos (browser_urls_seq)
+2025-12-22 19:45:14,474 - INFO - Conexiones establecidas correctamente (browser_urls_seq)
+2025-12-22 19:45:14,475 - INFO - [browser_urls_seq] Buscando filas pendientes (limite=500)
+2025-12-22 19:45:14,481 - INFO - [browser_urls_seq] Filas pendientes encontradas: 0
+2025-12-22 19:45:14,481 - INFO - [browser_urls_seq] No hay filas pendientes para procesar
+2025-12-22 19:45:14,481 - INFO - ETL browser_urls_seq finalizado. Total de filas procesadas: 0
+2025-12-22 19:45:14,481 - INFO - Cerrando conexiones a las bases de datos (browser_urls_seq)
+2025-12-22 19:45:14,482 - INFO - ===== Fin ETL browser_urls_seq =====

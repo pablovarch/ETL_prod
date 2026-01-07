@@ -1,0 +1,9 @@
+2025-12-22 19:45:13,417 - INFO - ===== Inicio ETL ad_chain_urls =====
+2025-12-22 19:45:13,417 - INFO - Iniciando conexiones a las bases de datos
+2025-12-22 19:45:13,507 - INFO - Conexiones establecidas correctamente
+2025-12-22 19:45:13,507 - INFO - Buscando filas pendientes en scraping (limite=500)
+2025-12-22 19:45:13,525 - INFO - Filas pendientes encontradas: 0
+2025-12-22 19:45:13,525 - INFO - No hay filas pendientes para procesar
+2025-12-22 19:45:13,525 - INFO - ETL finalizado. Total de filas procesadas: 0
+2025-12-22 19:45:13,525 - INFO - Cerrando conexiones a las bases de datos
+2025-12-22 19:45:13,527 - INFO - ===== Fin ETL ad_chain_urls =====

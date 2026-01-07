@@ -1,0 +1,9 @@
+2025-12-22 19:45:13,637 - INFO - ===== Inicio ETL ad_parameters =====
+2025-12-22 19:45:13,637 - INFO - Iniciando conexiones a las bases de datos (ad_parameters)
+2025-12-22 19:45:13,737 - INFO - Conexiones establecidas correctamente (ad_parameters)
+2025-12-22 19:45:13,738 - INFO - [ad_parameters] Buscando filas pendientes (limite=500)
+2025-12-22 19:45:13,782 - INFO - [ad_parameters] Filas pendientes encontradas: 0
+2025-12-22 19:45:13,782 - INFO - [ad_parameters] No hay filas pendientes para procesar
+2025-12-22 19:45:13,782 - INFO - ETL ad_parameters finalizado. Total de filas procesadas: 0
+2025-12-22 19:45:13,782 - INFO - Cerrando conexiones a las bases de datos (ad_parameters)
+2025-12-22 19:45:13,782 - INFO - ===== Fin ETL ad_parameters =====

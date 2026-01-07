@@ -1,0 +1,9 @@
+2025-12-22 19:45:13,527 - INFO - ===== Inicio ETL ad_bids =====
+2025-12-22 19:45:13,527 - INFO - Iniciando conexiones a las bases de datos (ad_bids)
+2025-12-22 19:45:13,601 - INFO - Conexiones establecidas correctamente (ad_bids)
+2025-12-22 19:45:13,601 - INFO - [ad_bids] Buscando filas pendientes (limite=500)
+2025-12-22 19:45:13,633 - INFO - [ad_bids] Filas pendientes encontradas: 0
+2025-12-22 19:45:13,633 - INFO - [ad_bids] No hay filas pendientes para procesar
+2025-12-22 19:45:13,634 - INFO - ETL ad_bids finalizado. Total de filas procesadas: 0
+2025-12-22 19:45:13,634 - INFO - Cerrando conexiones a las bases de datos (ad_bids)
+2025-12-22 19:45:13,634 - INFO - ===== Fin ETL ad_bids =====
