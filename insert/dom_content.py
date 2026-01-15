@@ -1,4 +1,4 @@
-# dom_content.py
+# dom_content_sync.py
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
@@ -6,36 +6,36 @@ from settings import SCRAPING_DB_DSN, PROD_DB_DSN, BATCH_SIZE
 from logger import Log
 
 
-class DomContent:
+class DomContentSync:
     """
-    ETL para sincronizar la tabla public.dom_content
-    desde la base de scraping hacia la base de producción.
+    Sincroniza public.dom_content desde scraping_db hacia prod_db.
+
+    Lógica:
+      - Lee filas con processed = false en scraping.dom_content.
+      - UPSERT en prod.dom_content usando ON CONFLICT(dom_content_id).
+      - Marca processed = true, processed_at = NOW() en scraping.
     """
 
     def __init__(self, batch_size: int | None = None):
-        self.logger = Log.get_logger("dom_content_etl")
+        self.logger = Log.get_logger("dom_content_sync_etl")
         self.batch_size = batch_size or BATCH_SIZE
-
         self.scraping_conn = None
         self.prod_conn = None
 
     # ---------- Conexiones ----------
 
     def connect(self):
-        """Abre conexiones a ambas bases de datos."""
-        self.logger.info("Iniciando conexiones a las bases de datos (dom_content)")
-
+        self.logger.info("Iniciando conexiones (dom_content_sync)")
         try:
             self.scraping_conn = psycopg2.connect(**SCRAPING_DB_DSN)
             self.prod_conn = psycopg2.connect(**PROD_DB_DSN)
-            self.logger.info("Conexiones establecidas correctamente (dom_content)")
+            self.logger.info("Conexiones OK (dom_content_sync)")
         except Exception as e:
-            self.logger.exception(f"Error al conectar a las bases de datos: {e}")
+            self.logger.exception(f"Error al conectar a las bases: {e}")
             raise
 
     def close(self):
-        """Cierra las conexiones abiertas."""
-        self.logger.info("Cerrando conexiones a las bases de datos (dom_content)")
+        self.logger.info("Cerrando conexiones (dom_content_sync)")
         try:
             if self.scraping_conn:
                 self.scraping_conn.close()
@@ -48,16 +48,20 @@ class DomContent:
 
     def fetch_pending_rows(self, limit: int):
         """
-        Obtiene filas pendientes (processed = false) desde la base de scraping.
+        Filas pendientes en scraping.dom_content (processed = false).
         """
-        self.logger.info(f"[dom_content] Buscando filas pendientes (limite={limit})")
+        self.logger.info(
+            f"[dom_content_sync] Buscando filas processed=false (limite={limit})"
+        )
 
         query = """
             SELECT
                 dom_content_id,
                 dom_content_label,
                 dom_content,
-                ad_event_id
+                ad_event_id,
+                privacy_policy,
+                terms_of_use
             FROM public.dom_content
             WHERE processed = false
             ORDER BY dom_content_id
@@ -68,16 +72,17 @@ class DomContent:
             cur.execute(query, (limit,))
             rows = cur.fetchall()
 
-        self.logger.info(f"[dom_content] Filas pendientes encontradas: {len(rows)}")
+        self.logger.info(
+            f"[dom_content_sync] Filas pendientes encontradas: {len(rows)}"
+        )
         return rows
 
     def upsert_into_prod(self, row: dict):
         """
-        Inserta o actualiza una fila en la tabla de producción.
-        Usa dom_content_id como PK compartida.
+        UPSERT en prod.dom_content usando dom_content_id como clave.
         """
         self.logger.debug(
-            f"[dom_content] Upsert en prod para dom_content_id={row.get('dom_content_id')}"
+            f"[dom_content_sync] Upsert prod para dom_content_id={row.get('dom_content_id')}"
         )
 
         query = """
@@ -85,17 +90,23 @@ class DomContent:
                 dom_content_id,
                 dom_content_label,
                 dom_content,
-                ad_event_id
+                ad_event_id,
+                privacy_policy,
+                terms_of_use
             ) VALUES (
                 %(dom_content_id)s,
                 %(dom_content_label)s,
                 %(dom_content)s,
-                %(ad_event_id)s
+                %(ad_event_id)s,
+                %(privacy_policy)s,
+                %(terms_of_use)s
             )
             ON CONFLICT (dom_content_id) DO UPDATE SET
                 dom_content_label = EXCLUDED.dom_content_label,
                 dom_content       = EXCLUDED.dom_content,
-                ad_event_id       = EXCLUDED.ad_event_id
+                ad_event_id       = EXCLUDED.ad_event_id,
+                privacy_policy    = EXCLUDED.privacy_policy,
+                terms_of_use      = EXCLUDED.terms_of_use;
         """
 
         with self.prod_conn.cursor() as cur:
@@ -103,15 +114,15 @@ class DomContent:
 
     def mark_as_processed(self, dom_content_id: int):
         """
-        Marca una fila como procesada en la base de scraping.
+        Marca processed=true en scraping.dom_content.
         """
         self.logger.debug(
-            f"[dom_content] Marcando como procesado dom_content_id={dom_content_id}"
+            f"[dom_content_sync] Marcando processed=true para dom_content_id={dom_content_id}"
         )
 
         query = """
             UPDATE public.dom_content
-            SET processed = true,
+            SET processed    = true,
                 processed_at = NOW()
             WHERE dom_content_id = %s
         """
@@ -122,59 +133,40 @@ class DomContent:
     # ---------- Lógica de batch ----------
 
     def process_batch(self) -> int:
-        """
-        Procesa un batch:
-        - Lee filas pendientes.
-        - Hace upsert en prod.
-        - Marca como processed en scraping.
-
-        Devuelve cuántas filas procesó.
-        """
         rows = self.fetch_pending_rows(self.batch_size)
-
         if not rows:
-            self.logger.info("[dom_content] No hay filas pendientes para procesar")
+            self.logger.info(
+                "[dom_content_sync] No hay filas pendientes para procesar"
+            )
             return 0
 
-        self.logger.info(f"[dom_content] Procesando batch de {len(rows)} filas")
+        self.logger.info(
+            f"[dom_content_sync] Procesando batch de {len(rows)} filas"
+        )
 
         try:
             for row in rows:
-                self.logger.debug(
-                    f"[dom_content] Procesando dom_content_id={row['dom_content_id']} "
-                    f"(ad_event_id={row['ad_event_id']})"
-                )
                 self.upsert_into_prod(row)
                 self.mark_as_processed(row["dom_content_id"])
 
-            # Commit del batch en ambas bases
             self.prod_conn.commit()
             self.scraping_conn.commit()
-
             self.logger.info(
-                f"[dom_content] Batch procesado correctamente ({len(rows)} filas)"
+                f"[dom_content_sync] Batch OK ({len(rows)} filas procesadas)"
             )
         except Exception as e:
             self.logger.exception(
-                f"[dom_content] Error procesando batch, rollback en ambas bases: {e}"
+                f"[dom_content_sync] Error en batch, rollback en ambas bases: {e}"
             )
             self.prod_conn.rollback()
             self.scraping_conn.rollback()
-            # opcional: raise si querés que el proceso externo falle
-            # raise
 
         return len(rows)
 
-    # ---------- Punto de entrada de la clase ----------
+    # ---------- Punto de entrada ----------
 
     def run(self):
-        """
-        Ejecuta el ETL completo:
-        - Abre conexiones
-        - Procesa batches hasta quedarse sin pendientes
-        - Cierra conexiones
-        """
-        self.logger.info("===== Inicio ETL dom_content =====")
+        self.logger.info("===== Inicio ETL dom_content_sync =====")
         self.connect()
 
         total_processed = 0
@@ -186,8 +178,9 @@ class DomContent:
                 total_processed += processed
 
             self.logger.info(
-                f"ETL dom_content finalizado. Total de filas procesadas: {total_processed}"
+                f"ETL dom_content_sync finalizado. "
+                f"Total filas procesadas: {total_processed}"
             )
         finally:
             self.close()
-            self.logger.info("===== Fin ETL dom_content =====")
+            self.logger.info("===== Fin ETL dom_content_sync =====")
