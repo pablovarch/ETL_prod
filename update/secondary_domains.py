@@ -10,9 +10,13 @@ class SecondaryDomainsSync:
     """
     Sincroniza public.secondary_domains desde scraping_db hacia prod_db.
 
+    IMPORTANTE: solo actualiza registros existentes en prod, NO inserta nuevos.
+
     Lógica:
       - Lee filas con processed = false en scraping.secondary_domains.
-      - UPSERT en prod.secondary_domains usando ON CONFLICT (sec_domain_id).
+      - En prod:
+          * UPDATE por sec_domain_id (no toca sec_domain).
+          * Si no existe ese sec_domain_id en prod, loguea un warning y sigue.
       - Marca processed = true, processed_at = NOW() en scraping.
     """
 
@@ -49,6 +53,7 @@ class SecondaryDomainsSync:
     def fetch_pending_rows(self, limit: int):
         """
         Filas pendientes en scraping.secondary_domains (processed = false).
+        No necesitamos traer sec_domain si no lo vamos a actualizar en prod.
         """
         self.logger.info(
             f"[secondary_domains_sync] Buscando filas processed=false (limite={limit})"
@@ -75,34 +80,41 @@ class SecondaryDomainsSync:
         )
         return rows
 
-    def upsert_into_prod(self, row: dict):
+    def update_in_prod(self, row: dict):
         """
-        UPSERT en prod.secondary_domains usando sec_domain_id como clave.
+        Actualiza una fila en prod.secondary_domains por sec_domain_id.
+        NO inserta si no existe.
+        NO toca la columna sec_domain (para evitar conflictos con NOT NULL).
         """
+        sec_domain_id = row.get("sec_domain_id")
         self.logger.debug(
-            f"[secondary_domains_sync] Upsert prod para sec_domain_id={row.get('sec_domain_id')}"
+            f"[secondary_domains_sync] UPDATE prod para sec_domain_id={sec_domain_id}"
         )
 
-        query = """
-            INSERT INTO public.secondary_domains (
-                sec_domain_id,
-                redirect_domain,
-                html_length,
-                online_status
-            ) VALUES (
-                %(sec_domain_id)s,
-                %(redirect_domain)s,
-                %(html_length)s,
-                %(online_status)s
-            )
-            ON CONFLICT (sec_domain_id) DO UPDATE SET
-                redirect_domain = EXCLUDED.redirect_domain,
-                html_length     = EXCLUDED.html_length,
-                online_status   = EXCLUDED.online_status;
+        update_query = """
+            UPDATE public.secondary_domains
+            SET
+                redirect_domain = %s,
+                html_length     = %s,
+                online_status   = %s
+            WHERE sec_domain_id = %s
         """
 
+        params = (
+            row["redirect_domain"],
+            row["html_length"],
+            row["online_status"],
+            sec_domain_id,
+        )
+
         with self.prod_conn.cursor() as cur:
-            cur.execute(query, row)
+            cur.execute(update_query, params)
+            if cur.rowcount == 0:
+                # No existe en prod -> solo avisamos en logs
+                self.logger.warning(
+                    f"[secondary_domains_sync] No existe en prod secondary_domains.sec_domain_id={sec_domain_id}. "
+                    f"No se actualiza ni se inserta."
+                )
 
     def mark_as_processed(self, sec_domain_id: int):
         """
@@ -138,7 +150,9 @@ class SecondaryDomainsSync:
 
         try:
             for row in rows:
-                self.upsert_into_prod(row)
+                self.update_in_prod(row)
+                # Marcar como procesado siempre, aunque no exista en prod,
+                # para no quedar en un loop eterno.
                 self.mark_as_processed(row["sec_domain_id"])
 
             self.prod_conn.commit()

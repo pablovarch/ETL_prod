@@ -20,37 +20,52 @@ from update import secondary_domains
 from insert import secondary_domains_html
 from update import domain_discovery
 from insert import domain_discovery_html
+from insert import domain_attributes_from_prod
+from insert import domain_discovery_from_prod
+from insert import secondary_domains_from_prod
 
 
 
 def main():
-   # insert scripts
-   # ad_chains_urls.AdChainsUrls().run()
-   # ad_bids.AdBids().run()
-   # ad_parameters.AdParameters().run()
-   # ad_chain_content.AdChainContent().run()
-   # ad_events.AdEvents().run()
-   # ad_vast.AdVast().run()
-   # ad_vast_parameters.AdVastParameters().run()
-   # address_bar_url.AddressBarUrl().run()
-   # navigation_screenshot.NavigationScreenshots().run()
-   # page_tags.PageTags().run()
-   # browser_url_sec.BrowserUrlsSeq().run()
-   # session_id.SessionIdGen().run()
-   # dom_content.DomContentSync().run()
-   # update scripts
-   # domain_attributes.DomainAttributesSync().run()
-   # domain_features.DomainFeaturesSync().run()
-   # subdomains.SubdomainsSync().run()
 
-   #secondary domains
-   # domain_discovery_features.DomainDiscoveryFeaturesSync().run()
-   # secondary_domains.SecondaryDomainsSync().run()
-   # secondary_domains_html.SecondaryDomainsHtmlSync().run()
 
-   # domain discovery
-   domain_discovery.DomainDiscoverySync().run()
-   domain_discovery_html.DomainDiscoveryHtmlSync().run()
+    # -------- From Prod
+    domain_attributes_from_prod.DomainAttributesFromProd().run()
+    domain_discovery_from_prod.DomainDiscoveryFromProd().run()
+    secondary_domains_from_prod.SecondaryDomainsFromProd().run()
+    
+    ## ------------ insert scripts
+
+    ad_chains_urls.AdChainsUrls().run()
+    ad_bids.AdBids().run()
+    ad_parameters.AdParameters().run()
+    ad_chain_content.AdChainContent().run()
+    ad_events.AdEvents().run()
+    ad_vast.AdVast().run()
+    ad_vast_parameters.AdVastParameters().run()
+    address_bar_url.AddressBarUrl().run()
+    navigation_screenshot.NavigationScreenshots().run()
+    page_tags.PageTags().run()
+    browser_url_sec.BrowserUrlsSeq().run()
+    session_id.SessionIdGen().run()
+    dom_content.DomContentSync().run()
+
+    ## ---------------- update scripts
+
+    domain_attributes.DomainAttributesSync().run()
+    domain_features.DomainFeaturesSync().run()
+    subdomains.SubdomainsSync().run()
+
+    # ------------------secondary domains
+    secondary_domains.SecondaryDomainsSync().run()
+    secondary_domains_html.SecondaryDomainsHtmlSync().run()
+    domain_discovery_features.DomainDiscoveryFeaturesSync().run()
+
+    # ---------------- domain discovery
+    domain_discovery.DomainDiscoverySync().run()
+    domain_discovery_html.DomainDiscoveryHtmlSync().run()
+
+
 
 if __name__ == "__main__":
     main()

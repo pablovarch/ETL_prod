@@ -12,7 +12,9 @@ class DomContentSync:
 
     Lógica:
       - Lee filas con processed = false en scraping.dom_content.
-      - UPSERT en prod.dom_content usando ON CONFLICT(dom_content_id).
+      - En prod:
+          * UPDATE por dom_content_id
+          * Si no actualiza ninguna fila, hace INSERT
       - Marca processed = true, processed_at = NOW() en scraping.
     """
 
@@ -79,38 +81,68 @@ class DomContentSync:
 
     def upsert_into_prod(self, row: dict):
         """
-        UPSERT en prod.dom_content usando dom_content_id como clave.
+        Inserta o actualiza una fila en prod.dom_content SIN usar ON CONFLICT.
+        - Primero intenta UPDATE por dom_content_id.
+        - Si no afecta filas, hace INSERT.
         """
+        dom_content_id = row.get("dom_content_id")
         self.logger.debug(
-            f"[dom_content_sync] Upsert prod para dom_content_id={row.get('dom_content_id')}"
+            f"[dom_content_sync] Upsert (UPDATE/INSERT) en prod para dom_content_id={dom_content_id}"
         )
 
-        query = """
-            INSERT INTO public.dom_content (
-                dom_content_id,
-                dom_content_label,
-                dom_content,
-                ad_event_id,
-                privacy_policy,
-                terms_of_use
-            ) VALUES (
-                %(dom_content_id)s,
-                %(dom_content_label)s,
-                %(dom_content)s,
-                %(ad_event_id)s,
-                %(privacy_policy)s,
-                %(terms_of_use)s
-            )
-            ON CONFLICT (dom_content_id) DO UPDATE SET
-                dom_content_label = EXCLUDED.dom_content_label,
-                dom_content       = EXCLUDED.dom_content,
-                ad_event_id       = EXCLUDED.ad_event_id,
-                privacy_policy    = EXCLUDED.privacy_policy,
-                terms_of_use      = EXCLUDED.terms_of_use;
+        update_query = """
+            UPDATE public.dom_content
+            SET
+                dom_content_label = %s,
+                dom_content       = %s,
+                ad_event_id       = %s,
+                privacy_policy    = %s,
+                terms_of_use      = %s
+            WHERE dom_content_id = %s
         """
 
+        update_params = (
+            row["dom_content_label"],
+            row["dom_content"],
+            row["ad_event_id"],
+            row["privacy_policy"],
+            row["terms_of_use"],
+            dom_content_id,
+        )
+
         with self.prod_conn.cursor() as cur:
-            cur.execute(query, row)
+            # Intentar UPDATE
+            cur.execute(update_query, update_params)
+
+            if cur.rowcount == 0:
+                # No existía → INSERT
+                insert_query = """
+                    INSERT INTO public.dom_content (
+                        dom_content_id,
+                        dom_content_label,
+                        dom_content,
+                        ad_event_id,
+                        privacy_policy,
+                        terms_of_use
+                    ) VALUES (%s, %s, %s, %s, %s, %s)
+                """
+                insert_params = (
+                    dom_content_id,
+                    row["dom_content_label"],
+                    row["dom_content"],
+                    row["ad_event_id"],
+                    row["privacy_policy"],
+                    row["terms_of_use"],
+                )
+
+                self.logger.debug(
+                    f"[dom_content_sync] INSERT en prod para dom_content_id={dom_content_id}"
+                )
+                cur.execute(insert_query, insert_params)
+            else:
+                self.logger.debug(
+                    f"[dom_content_sync] UPDATE aplicado en prod para dom_content_id={dom_content_id}"
+                )
 
     def mark_as_processed(self, dom_content_id: int):
         """
