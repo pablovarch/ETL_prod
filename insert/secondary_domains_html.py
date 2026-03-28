@@ -58,7 +58,9 @@ class SecondaryDomainsHtmlSync:
             SELECT
                 sec_domain_html_id,
                 html_content,
-                sec_domain_id
+                sec_domain_id,
+                privacy_policy,
+                terms_of_use
             FROM public.secondary_domains_html
             WHERE processed = false
             ORDER BY sec_domain_html_id
@@ -86,15 +88,21 @@ class SecondaryDomainsHtmlSync:
             INSERT INTO public.secondary_domains_html (
                 sec_domain_html_id,
                 html_content,
-                sec_domain_id
+                sec_domain_id,
+                privacy_policy,
+                terms_of_use
             ) VALUES (
                 %(sec_domain_html_id)s,
                 %(html_content)s,
-                %(sec_domain_id)s
+                %(sec_domain_id)s,
+                %(privacy_policy)s,
+                %(terms_of_use)s
             )
             ON CONFLICT (sec_domain_html_id) DO UPDATE SET
-                html_content = EXCLUDED.html_content,
-                sec_domain_id = EXCLUDED.sec_domain_id;
+                html_content    = EXCLUDED.html_content,
+                sec_domain_id   = EXCLUDED.sec_domain_id,
+                privacy_policy  = EXCLUDED.privacy_policy,
+                terms_of_use    = EXCLUDED.terms_of_use;
         """
 
         with self.prod_conn.cursor() as cur:

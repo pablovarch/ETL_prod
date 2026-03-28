@@ -22,7 +22,6 @@ class AdChainContent:
     # ---------- Conexiones ----------
 
     def connect(self):
-        """Abre conexiones a ambas bases de datos."""
         self.logger.info("Iniciando conexiones a las bases de datos (ad_chain_content)")
 
         try:
@@ -34,7 +33,6 @@ class AdChainContent:
             raise
 
     def close(self):
-        """Cierra las conexiones abiertas."""
         self.logger.info("Cerrando conexiones a las bases de datos (ad_chain_content)")
         try:
             if self.scraping_conn:
@@ -58,7 +56,9 @@ class AdChainContent:
                 content_response,
                 ad_url_id,
                 ad_event_id,
-                ad_url
+                ad_url,
+                status_code,
+                google_soft_block
             FROM public.ad_chain_content
             WHERE processed = false
             ORDER BY ad_chain_content_id
@@ -87,19 +87,25 @@ class AdChainContent:
                 content_response,
                 ad_url_id,
                 ad_event_id,
-                ad_url
+                ad_url,
+                status_code,
+                google_soft_block
             ) VALUES (
                 %(ad_chain_content_id)s,
                 %(content_response)s,
                 %(ad_url_id)s,
                 %(ad_event_id)s,
-                %(ad_url)s
+                %(ad_url)s,
+                %(status_code)s,
+                %(google_soft_block)s
             )
             ON CONFLICT (ad_chain_content_id) DO UPDATE SET
-                content_response = EXCLUDED.content_response,
-                ad_url_id        = EXCLUDED.ad_url_id,
-                ad_event_id      = EXCLUDED.ad_event_id,
-                ad_url           = EXCLUDED.ad_url
+                content_response  = EXCLUDED.content_response,
+                ad_url_id         = EXCLUDED.ad_url_id,
+                ad_event_id       = EXCLUDED.ad_event_id,
+                ad_url            = EXCLUDED.ad_url,
+                status_code       = EXCLUDED.status_code,
+                google_soft_block = EXCLUDED.google_soft_block
         """
 
         with self.prod_conn.cursor() as cur:
@@ -151,7 +157,6 @@ class AdChainContent:
                 self.upsert_into_prod(row)
                 self.mark_as_processed(row["ad_chain_content_id"])
 
-            # Commit del batch en ambas bases
             self.prod_conn.commit()
             self.scraping_conn.commit()
 
@@ -164,8 +169,6 @@ class AdChainContent:
             )
             self.prod_conn.rollback()
             self.scraping_conn.rollback()
-            # opcional: raise si querés que el proceso externo falle
-            # raise
 
         return len(rows)
 

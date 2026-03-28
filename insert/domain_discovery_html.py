@@ -102,11 +102,11 @@ class DomainDiscoveryHtmlSync:
                 %(terms_of_use)s
             )
             ON CONFLICT (disc_domain_html_id) DO UPDATE SET
-                html_content   = EXCLUDED.html_content,
-                sec_domain     = EXCLUDED.sec_domain,
-                disc_domain_id = EXCLUDED.disc_domain_id,
-                privacy_policy = EXCLUDED.privacy_policy,
-                terms_of_use   = EXCLUDED.terms_of_use;
+                html_content    = EXCLUDED.html_content,
+                sec_domain      = EXCLUDED.sec_domain,
+                disc_domain_id  = EXCLUDED.disc_domain_id,
+                privacy_policy  = EXCLUDED.privacy_policy,
+                terms_of_use    = EXCLUDED.terms_of_use;
         """
 
         with self.prod_conn.cursor() as cur:
