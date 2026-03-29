@@ -23,6 +23,7 @@ from insert import domain_discovery_html
 from insert import domain_attributes_from_prod
 from insert import domain_discovery_from_prod
 from insert import secondary_domains_from_prod
+from insert import browser_profiles
 
 
 
@@ -30,31 +31,35 @@ def main():
 
 
     # -------- From Prod
-    domain_attributes_from_prod.DomainAttributesFromProd().run()
-    domain_discovery_from_prod.DomainDiscoveryFromProd().run()
-    secondary_domains_from_prod.SecondaryDomainsFromProd().run()
-    
-    ## ------------ insert scripts
+    # domain_attributes_from_prod.DomainAttributesFromProd().run()
+    # domain_discovery_from_prod.DomainDiscoveryFromProd().run()
+    # secondary_domains_from_prod.SecondaryDomainsFromProd().run()
+    # subdomains.SubdomainsSync().run()
 
-    ad_chains_urls.AdChainsUrls().run()
-    ad_bids.AdBids().run()
-    ad_parameters.AdParameters().run()
-    ad_chain_content.AdChainContent().run()
+
+    ## ------------ insert scripts
+    session_id.SessionIdGen().run()
+    browser_profiles.BrowserProfilesSync().run()
     ad_events.AdEvents().run()
+    ad_chains_urls.AdChainsUrls().run()
+    ad_chain_content.AdChainContent().run()
+    ad_bids.AdBids().run()
     ad_vast.AdVast().run()
+    ad_parameters.AdParameters().run()
     ad_vast_parameters.AdVastParameters().run()
     address_bar_url.AddressBarUrl().run()
+    browser_url_sec.BrowserUrlsSeq().run()
+    dom_content.DomContentSync().run()
     navigation_screenshot.NavigationScreenshots().run()
     page_tags.PageTags().run()
-    browser_url_sec.BrowserUrlsSeq().run()
-    session_id.SessionIdGen().run()
-    dom_content.DomContentSync().run()
+
+
 
     ## ---------------- update scripts
 
     domain_attributes.DomainAttributesSync().run()
-    domain_features.DomainFeaturesSync().run()
-    subdomains.SubdomainsSync().run()
+    # domain_features.DomainFeaturesSync().run()
+    # subdomains.SubdomainsSync().run()
 
     # ------------------secondary domains
     secondary_domains.SecondaryDomainsSync().run()
