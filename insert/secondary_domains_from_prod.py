@@ -17,7 +17,7 @@ class SecondaryDomainsFromProd:
           * UPDATE por sec_domain_id.
           * Si no existe, INSERT.
           * Copia todos los campos de negocio.
-          * Marca processed = true, processed_at = NOW().
+          * NO actualiza processed ni processed_at en scraping.
       - PROD:
           * Después de sincronizar, marca processed = true, processed_at = NOW()
             para ese sec_domain_id.
@@ -125,7 +125,7 @@ class SecondaryDomainsFromProd:
                 top_referrers,
                 google_search_results,
                 retracted,
-                retracted_date,
+                retraction_date,
                 decision_source,
                 updated_by
             FROM public.secondary_domains
@@ -171,7 +171,7 @@ class SecondaryDomainsFromProd:
 
         - Si existe -> UPDATE.
         - Si no existe -> INSERT.
-        - Siempre marca processed = true, processed_at = NOW().
+        - NO actualiza processed ni processed_at en scraping.
         """
         sec_domain_id = row["sec_domain_id"]
 
@@ -179,72 +179,69 @@ class SecondaryDomainsFromProd:
             f"[secondary_domains_from_prod] Upsert en scraping para sec_domain_id={sec_domain_id}"
         )
 
-        # ---------- UPDATE primero (placeholders nombrados) ----------
         update_query = """
             UPDATE public.secondary_domains
             SET
-                sec_domain_url              = %(sec_domain_url)s,
-                sec_domain                  = %(sec_domain)s,
-                gtr_history                 = %(gtr_history)s,
-                piracy_kw_br                = %(piracy_kw_br)s,
-                google_indexed              = %(google_indexed)s,
-                ad_content                  = %(ad_content)s,
-                blocks_direct_browsing      = %(blocks_direct_browsing)s,
-                specific_sw_category        = %(specific_sw_category)s,
-                referral_traffic            = %(referral_traffic)s,
-                secondary_domain_type       = %(secondary_domain_type)s,
-                redirect_domain             = %(redirect_domain)s,
-                short_html                  = %(short_html)s,
-                html_length                 = %(html_length)s,
-                collection_timestamp        = %(collection_timestamp)s,
-                ml_secondary_domain_type    = %(ml_secondary_domain_type)s,
-                added                       = %(added)s,
-                sec_domain_root             = %(sec_domain_root)s,
-                exc_domain_id               = %(exc_domain_id)s,
-                whois_id                    = %(whois_id)s,
-                domain_id                   = %(domain_id)s,
-                sec_domain_source           = %(sec_domain_source)s,
-                ml_piracy                   = %(ml_piracy)s,
+                sec_domain_url               = %(sec_domain_url)s,
+                sec_domain                   = %(sec_domain)s,
+                gtr_history                  = %(gtr_history)s,
+                piracy_kw_br                 = %(piracy_kw_br)s,
+                google_indexed               = %(google_indexed)s,
+                ad_content                   = %(ad_content)s,
+                blocks_direct_browsing       = %(blocks_direct_browsing)s,
+                specific_sw_category         = %(specific_sw_category)s,
+                referral_traffic             = %(referral_traffic)s,
+                secondary_domain_type        = %(secondary_domain_type)s,
+                redirect_domain              = %(redirect_domain)s,
+                short_html                   = %(short_html)s,
+                html_length                  = %(html_length)s,
+                collection_timestamp         = %(collection_timestamp)s,
+                ml_secondary_domain_type     = %(ml_secondary_domain_type)s,
+                added                        = %(added)s,
+                sec_domain_root              = %(sec_domain_root)s,
+                exc_domain_id                = %(exc_domain_id)s,
+                whois_id                     = %(whois_id)s,
+                domain_id                    = %(domain_id)s,
+                sec_domain_source            = %(sec_domain_source)s,
+                ml_piracy                    = %(ml_piracy)s,
                 ml_sec_domain_classification = %(ml_sec_domain_classification)s,
                 an_sec_domain_classification = %(an_sec_domain_classification)s,
-                online_status               = %(online_status)s,
-                ad_count                    = %(ad_count)s,
-                site_map_count              = %(site_map_count)s,
-                tld_poor                    = %(tld_poor)s,
-                site_traffic                = %(site_traffic)s,
-                graymarket_label            = %(graymarket_label)s,
-                has_affiliate_handoff       = %(has_affiliate_handoff)s,
-                is_ecommerce                = %(is_ecommerce)s,
-                ssl_poor                    = %(ssl_poor)s,
-                mfa_engagement              = %(mfa_engagement)s,
-                high_traffic                = %(high_traffic)s,
-                ad_density                  = %(ad_density)s,
-                redirect_status_code        = %(redirect_status_code)s,
-                is_high_risk_geo            = %(is_high_risk_geo)s,
-                ml_model_classified         = %(ml_model_classified)s,
-                review_status               = %(review_status)s,
-                publication_status          = %(publication_status)s,
-                suspect_cloak               = %(suspect_cloak)s,
-                last_seen                   = %(last_seen)s,
-                abuse_category              = %(abuse_category)s,
-                confidence                  = %(confidence)s,
-                justification               = %(justification)s,
-                retraction_reason           = %(retraction_reason)s,
-                first_reported              = %(first_reported)s,
-                fraud_type                  = %(fraud_type)s,
-                exploit_type                = %(exploit_type)s,
-                content_type                = %(content_type)s,
-                top_targets                 = %(top_targets)s,
-                recommended_action_id       = %(recommended_action_id)s,
-                previous_action_id          = %(previous_action_id)s,
-                top_referrers               = %(top_referrers)s,
-                google_search_results       = %(google_search_results)s,
-                retracted                   = %(retracted)s,
-                retracted_date              = %(retracted_date)s,
-                decision_source             = %(decision_source)s,
-                updated_by                  = %(updated_by)s,
-                processed                   = true,
-                processed_at                = NOW()
+                online_status                = %(online_status)s,
+                ad_count                     = %(ad_count)s,
+                site_map_count               = %(site_map_count)s,
+                tld_poor                     = %(tld_poor)s,
+                site_traffic                 = %(site_traffic)s,
+                graymarket_label             = %(graymarket_label)s,
+                has_affiliate_handoff        = %(has_affiliate_handoff)s,
+                is_ecommerce                 = %(is_ecommerce)s,
+                ssl_poor                     = %(ssl_poor)s,
+                mfa_engagement               = %(mfa_engagement)s,
+                high_traffic                 = %(high_traffic)s,
+                ad_density                   = %(ad_density)s,
+                redirect_status_code         = %(redirect_status_code)s,
+                is_high_risk_geo             = %(is_high_risk_geo)s,
+                ml_model_classified          = %(ml_model_classified)s,
+                review_status                = %(review_status)s,
+                publication_status           = %(publication_status)s,
+                suspect_cloak                = %(suspect_cloak)s,
+                last_seen                    = %(last_seen)s,
+                abuse_category               = %(abuse_category)s,
+                confidence                   = %(confidence)s,
+                justification                = %(justification)s,
+                retraction_reason            = %(retraction_reason)s,
+                first_reported               = %(first_reported)s,
+                fraud_type                   = %(fraud_type)s,
+                exploit_type                 = %(exploit_type)s,
+                content_type                 = %(content_type)s,
+                top_targets                  = %(top_targets)s,
+                recommended_action_id        = %(recommended_action_id)s,
+                previous_action_id           = %(previous_action_id)s,
+                top_referrers                = %(top_referrers)s,
+                google_search_results        = %(google_search_results)s,
+                retracted                    = %(retracted)s,
+                retraction_date               = %(retraction_date)s,
+                decision_source              = %(decision_source)s,
+                updated_by                   = %(updated_by)s
             WHERE sec_domain_id = %(sec_domain_id)s
         """
 
@@ -252,7 +249,6 @@ class SecondaryDomainsFromProd:
             cur.execute(update_query, row)
 
             if cur.rowcount == 0:
-                # ---------- INSERT si no existe (también nombrado) ----------
                 insert_query = """
                     INSERT INTO public.secondary_domains (
                         sec_domain_id,
@@ -313,11 +309,9 @@ class SecondaryDomainsFromProd:
                         top_referrers,
                         google_search_results,
                         retracted,
-                        retracted_date,
+                        retraction_date,
                         decision_source,
-                        updated_by,
-                        processed,
-                        processed_at
+                        updated_by
                     ) VALUES (
                         %(sec_domain_id)s,
                         %(sec_domain_url)s,
@@ -377,11 +371,9 @@ class SecondaryDomainsFromProd:
                         %(top_referrers)s,
                         %(google_search_results)s,
                         %(retracted)s,
-                        %(retracted_date)s,
+                        %(retraction_date)s,
                         %(decision_source)s,
-                        %(updated_by)s,
-                        true,
-                        NOW()
+                        %(updated_by)s
                     )
                 """
 
@@ -397,10 +389,6 @@ class SecondaryDomainsFromProd:
     # ---------- Orquestación ----------
 
     def process_all(self) -> int:
-        """
-        Recorre prod.secondary_domains en batches (processed = false)
-        y sincroniza hacia scraping.
-        """
         total_processed = 0
 
         while True:
@@ -414,7 +402,6 @@ class SecondaryDomainsFromProd:
                     self.mark_prod_as_processed(row["sec_domain_id"])
                     total_processed += 1
 
-                # Commit en ambas bases por batch
                 self.scraping_conn.commit()
                 self.prod_conn.commit()
 

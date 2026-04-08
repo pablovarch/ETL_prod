@@ -67,6 +67,7 @@ class SecondaryDomainsSync:
                 online_status
             FROM public.secondary_domains
             WHERE processed = false
+            and online_status is not null
             ORDER BY sec_domain_id
             LIMIT %s
         """
