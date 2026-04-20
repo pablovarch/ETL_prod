@@ -16,8 +16,8 @@ class DomainDiscoveryFromProd:
       - SCRAPING:
           * UPDATE por disc_domain_id.
           * Si no existe, INSERT.
-          * Copia todos los campos de negocio.
-          * Marca processed = true, processed_at = NOW().
+          * Copia campos de negocio seleccionados.
+          * NO actualiza processed, processed_at, online_status ni status_details en scraping.
       - PROD:
           * Después de sincronizar, marca processed = true, processed_at = NOW()
             para ese disc_domain_id.
@@ -71,8 +71,6 @@ class DomainDiscoveryFromProd:
                 disc_domain,
                 keyword,
                 whois_id,
-                online_status,
-                status_details,
                 first_add,
                 new_domain,
                 age_of_registration,
@@ -138,7 +136,7 @@ class DomainDiscoveryFromProd:
 
         - Si existe -> UPDATE.
         - Si no existe -> INSERT.
-        - Siempre marca processed = true, processed_at = NOW() en scraping.
+        - NO actualiza processed, processed_at, online_status ni status_details en scraping.
         """
         disc_domain_id = row["disc_domain_id"]
 
@@ -146,15 +144,12 @@ class DomainDiscoveryFromProd:
             f"[domain_discovery_from_prod] Upsert en scraping para disc_domain_id={disc_domain_id}"
         )
 
-        # ---------- UPDATE primero (placeholders nombrados) ----------
         update_query = """
             UPDATE public.domain_discovery
             SET
                 disc_domain                  = %(disc_domain)s,
                 keyword                      = %(keyword)s,
                 whois_id                     = %(whois_id)s,
-                online_status                = %(online_status)s,
-                status_details               = %(status_details)s,
                 first_add                    = %(first_add)s,
                 new_domain                   = %(new_domain)s,
                 age_of_registration          = %(age_of_registration)s,
@@ -176,9 +171,7 @@ class DomainDiscoveryFromProd:
                 is_iptv                      = %(is_iptv)s,
                 subdomain_host               = %(subdomain_host)s,
                 ml_media_type_id             = %(ml_media_type_id)s,
-                ml_dd_classification_id      = %(ml_dd_classification_id)s,
-                processed                    = true,
-                processed_at                 = NOW()
+                ml_dd_classification_id      = %(ml_dd_classification_id)s
             WHERE disc_domain_id = %(disc_domain_id)s
         """
 
@@ -186,15 +179,12 @@ class DomainDiscoveryFromProd:
             cur.execute(update_query, row)
 
             if cur.rowcount == 0:
-                # ---------- INSERT si no existe (también nombrado) ----------
                 insert_query = """
                     INSERT INTO public.domain_discovery (
                         disc_domain_id,
                         disc_domain,
                         keyword,
                         whois_id,
-                        online_status,
-                        status_details,
                         first_add,
                         new_domain,
                         age_of_registration,
@@ -216,16 +206,12 @@ class DomainDiscoveryFromProd:
                         is_iptv,
                         subdomain_host,
                         ml_media_type_id,
-                        ml_dd_classification_id,
-                        processed,
-                        processed_at
+                        ml_dd_classification_id
                     ) VALUES (
                         %(disc_domain_id)s,
                         %(disc_domain)s,
                         %(keyword)s,
                         %(whois_id)s,
-                        %(online_status)s,
-                        %(status_details)s,
                         %(first_add)s,
                         %(new_domain)s,
                         %(age_of_registration)s,
@@ -247,9 +233,7 @@ class DomainDiscoveryFromProd:
                         %(is_iptv)s,
                         %(subdomain_host)s,
                         %(ml_media_type_id)s,
-                        %(ml_dd_classification_id)s,
-                        true,
-                        NOW()
+                        %(ml_dd_classification_id)s
                     )
                 """
 
@@ -278,12 +262,10 @@ class DomainDiscoveryFromProd:
 
             try:
                 for row in rows:
-                    # row ya es un dict con todas las claves del SELECT
                     self.upsert_into_scraping(row)
                     self.mark_prod_as_processed(row["disc_domain_id"])
                     total_processed += 1
 
-                # Commit en ambas bases por batch
                 self.scraping_conn.commit()
                 self.prod_conn.commit()
 
@@ -313,4 +295,3 @@ class DomainDiscoveryFromProd:
         finally:
             self.close()
             self.logger.info("===== Fin ETL domain_discovery_from_prod =====")
-
