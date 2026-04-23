@@ -61,7 +61,8 @@ class DomainDiscoverySync:
                 status_details,
                 status_msg
             FROM public.domain_discovery
-            WHERE processed = false
+            WHERE processed = false            
+            and online_status is not null 
             ORDER BY disc_domain_id
             LIMIT %s
         """
