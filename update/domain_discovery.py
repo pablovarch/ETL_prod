@@ -8,12 +8,13 @@ from logger import Log
 
 class DomainDiscoverySync:
     """
-    Sincroniza public.domain_discovery desde scraping_db hacia prod_db.
+    Synchronizes public.domain_discovery from scraping_db to prod_db.
 
-    Lógica:
-      - Lee filas con processed = false en scraping.domain_discovery.
-      - UPSERT en prod.domain_discovery usando ON CONFLICT(disc_domain_id).
-      - Marca processed = true, processed_at = NOW() en scraping.
+    Behavior:
+      - Reads rows with processed = false from scraping.domain_discovery
+      - Updates existing rows in prod by disc_domain_id
+      - Does NOT insert new rows into prod
+      - Marks rows as processed in scraping after processing
     """
 
     def __init__(self, batch_size: int | None = None):
@@ -22,7 +23,7 @@ class DomainDiscoverySync:
         self.scraping_conn = None
         self.prod_conn = None
 
-    # ---------- Conexiones ----------
+    # ---------- Connections ----------
 
     def connect(self):
         self.logger.info("Iniciando conexiones (domain_discovery_sync)")
@@ -44,11 +45,11 @@ class DomainDiscoverySync:
         except Exception as e:
             self.logger.exception(f"Error al cerrar conexiones: {e}")
 
-    # ---------- Operaciones de BD ----------
+    # ---------- DB Operations ----------
 
     def fetch_pending_rows(self, limit: int):
         """
-        Filas pendientes en scraping.domain_discovery (processed = false).
+        Fetches pending rows from scraping.domain_discovery.
         """
         self.logger.info(
             f"[domain_discovery_sync] Buscando filas processed=false (limite={limit})"
@@ -61,8 +62,7 @@ class DomainDiscoverySync:
                 status_details,
                 status_msg
             FROM public.domain_discovery
-            WHERE processed = false            
-            and online_status is not null 
+            WHERE processed = false
             ORDER BY disc_domain_id
             LIMIT %s
         """
@@ -76,38 +76,45 @@ class DomainDiscoverySync:
         )
         return rows
 
-    def upsert_into_prod(self, row: dict):
+    def update_in_prod(self, row: dict):
         """
-        UPSERT en prod.domain_discovery usando disc_domain_id como clave.
+        Updates an existing row in prod.domain_discovery by disc_domain_id.
+        Does not insert if the row does not exist.
         """
+        disc_domain_id = row.get("disc_domain_id")
+
         self.logger.debug(
-            f"[domain_discovery_sync] Upsert prod para disc_domain_id={row.get('disc_domain_id')}"
+            f"[domain_discovery_sync] UPDATE en prod para disc_domain_id={disc_domain_id}"
         )
 
         query = """
-            INSERT INTO public.domain_discovery (
-                disc_domain_id,
-                online_status,
-                status_details,
-                status_msg
-            ) VALUES (
-                %(disc_domain_id)s,
-                %(online_status)s,
-                %(status_details)s,
-                %(status_msg)s
-            )
-            ON CONFLICT (disc_domain_id) DO UPDATE SET
-                online_status  = EXCLUDED.online_status,
-                status_details = EXCLUDED.status_details,
-                status_msg     = EXCLUDED.status_msg;
+            UPDATE public.domain_discovery
+            SET
+                online_status  = %s,
+                status_details = %s,
+                status_msg     = %s
+            WHERE disc_domain_id = %s
         """
 
+        params = (
+            row["online_status"],
+            row["status_details"],
+            row["status_msg"],
+            disc_domain_id,
+        )
+
         with self.prod_conn.cursor() as cur:
-            cur.execute(query, row)
+            cur.execute(query, params)
+
+            if cur.rowcount == 0:
+                self.logger.warning(
+                    f"[domain_discovery_sync] No existe en prod disc_domain_id={disc_domain_id}. "
+                    f"No se actualiza ni se inserta."
+                )
 
     def mark_as_processed(self, disc_domain_id: int):
         """
-        Marca processed=true en scraping.domain_discovery.
+        Marks a row as processed in scraping.domain_discovery.
         """
         self.logger.debug(
             f"[domain_discovery_sync] Marcando processed=true para disc_domain_id={disc_domain_id}"
@@ -123,10 +130,11 @@ class DomainDiscoverySync:
         with self.scraping_conn.cursor() as cur:
             cur.execute(query, (disc_domain_id,))
 
-    # ---------- Lógica de batch ----------
+    # ---------- Batch Logic ----------
 
     def process_batch(self) -> int:
         rows = self.fetch_pending_rows(self.batch_size)
+
         if not rows:
             self.logger.info(
                 "[domain_discovery_sync] No hay filas pendientes para procesar"
@@ -139,11 +147,12 @@ class DomainDiscoverySync:
 
         try:
             for row in rows:
-                self.upsert_into_prod(row)
+                self.update_in_prod(row)
                 self.mark_as_processed(row["disc_domain_id"])
 
             self.prod_conn.commit()
             self.scraping_conn.commit()
+
             self.logger.info(
                 f"[domain_discovery_sync] Batch OK ({len(rows)} filas procesadas)"
             )
@@ -156,7 +165,7 @@ class DomainDiscoverySync:
 
         return len(rows)
 
-    # ---------- Punto de entrada ----------
+    # ---------- Entry Point ----------
 
     def run(self):
         self.logger.info("===== Inicio ETL domain_discovery_sync =====")
