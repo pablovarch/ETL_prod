@@ -1,4 +1,3 @@
-# domain_discovery_from_prod.py
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
@@ -11,14 +10,13 @@ class DomainDiscoveryFromProd:
     Sincroniza public.domain_discovery desde prod_db hacia scraping_db.
 
     Lógica:
-      - PROD:
+      - En PROD:
           * Lee solo registros con processed = false.
-      - SCRAPING:
-          * UPDATE por disc_domain_id.
-          * Si no existe, INSERT.
-          * Copia campos de negocio seleccionados.
-          * NO actualiza processed, processed_at, online_status ni status_details en scraping.
-      - PROD:
+      - En SCRAPING:
+          * Solo INSERT si no existe el disc_domain.
+          * No hace UPDATE.
+          * Inserta disc_domain_id usando el valor de producción.
+      - En PROD:
           * Después de sincronizar, marca processed = true, processed_at = NOW()
             para ese disc_domain_id.
     """
@@ -126,125 +124,93 @@ class DomainDiscoveryFromProd:
         with self.prod_conn.cursor() as cur:
             cur.execute(query, (disc_domain_id,))
 
-    # ---------- SCRAPING: upsert por disc_domain_id ----------
+    # ---------- SCRAPING ----------
 
-    def upsert_into_scraping(self, row: dict):
+    def exists_in_scraping(self, disc_domain: str) -> bool:
         """
-        Inserta o actualiza una fila en scraping.domain_discovery.
-
-        Clave: disc_domain_id.
-
-        - Si existe -> UPDATE.
-        - Si no existe -> INSERT.
-        - NO actualiza processed, processed_at, online_status ni status_details en scraping.
+        Verifica si el disc_domain ya existe en scraping.
         """
+        query = """
+            SELECT 1
+            FROM public.domain_discovery
+            WHERE disc_domain = %s
+            LIMIT 1
+        """
+        with self.scraping_conn.cursor() as cur:
+            cur.execute(query, (disc_domain,))
+            return cur.fetchone() is not None
+
+    def insert_into_scraping(self, row: dict):
+        """
+        Inserta una fila nueva en scraping copiando disc_domain_id desde prod.
+        """
+        disc_domain = row["disc_domain"]
         disc_domain_id = row["disc_domain_id"]
 
         self.logger.debug(
-            f"[domain_discovery_from_prod] Upsert en scraping para disc_domain_id={disc_domain_id}"
+            f"[domain_discovery_from_prod] INSERT en scraping para disc_domain={disc_domain}, disc_domain_id={disc_domain_id}"
         )
 
-        update_query = """
-            UPDATE public.domain_discovery
-            SET
-                disc_domain                  = %(disc_domain)s,
-                keyword                      = %(keyword)s,
-                whois_id                     = %(whois_id)s,
-                first_add                    = %(first_add)s,
-                new_domain                   = %(new_domain)s,
-                age_of_registration          = %(age_of_registration)s,
-                estimated_domain_age         = %(estimated_domain_age)s,
-                commercial_registrant        = %(commercial_registrant)s,
-                likely_commercial_registrant = %(likely_commercial_registrant)s,
-                registrar_name               = %(registrar_name)s,
-                ping                         = %(ping)s,
-                tracert                      = %(tracert)s,
-                domain_id                    = %(domain_id)s,
-                ml_piracy                    = %(ml_piracy)s,
-                site_url                     = %(site_url)s,
-                site_domain                  = %(site_domain)s,
-                status_msg                   = %(status_msg)s,
-                "source"                     = %(source)s,
-                tenant                       = %(tenant)s,
-                exc_domain_id                = %(exc_domain_id)s,
-                disc_domain_root             = %(disc_domain_root)s,
-                is_iptv                      = %(is_iptv)s,
-                subdomain_host               = %(subdomain_host)s,
-                ml_media_type_id             = %(ml_media_type_id)s,
-                ml_dd_classification_id      = %(ml_dd_classification_id)s
-            WHERE disc_domain_id = %(disc_domain_id)s
+        insert_query = """
+            INSERT INTO public.domain_discovery (
+                disc_domain_id,
+                disc_domain,
+                keyword,
+                whois_id,
+                first_add,
+                new_domain,
+                age_of_registration,
+                estimated_domain_age,
+                commercial_registrant,
+                likely_commercial_registrant,
+                registrar_name,
+                ping,
+                tracert,
+                domain_id,
+                ml_piracy,
+                site_url,
+                site_domain,
+                status_msg,
+                "source",
+                tenant,
+                exc_domain_id,
+                disc_domain_root,
+                is_iptv,
+                subdomain_host,
+                ml_media_type_id,
+                ml_dd_classification_id
+            ) VALUES (
+                %(disc_domain_id)s,
+                %(disc_domain)s,
+                %(keyword)s,
+                %(whois_id)s,
+                %(first_add)s,
+                %(new_domain)s,
+                %(age_of_registration)s,
+                %(estimated_domain_age)s,
+                %(commercial_registrant)s,
+                %(likely_commercial_registrant)s,
+                %(registrar_name)s,
+                %(ping)s,
+                %(tracert)s,
+                %(domain_id)s,
+                %(ml_piracy)s,
+                %(site_url)s,
+                %(site_domain)s,
+                %(status_msg)s,
+                %(source)s,
+                %(tenant)s,
+                %(exc_domain_id)s,
+                %(disc_domain_root)s,
+                %(is_iptv)s,
+                %(subdomain_host)s,
+                %(ml_media_type_id)s,
+                %(ml_dd_classification_id)s
+            )
         """
 
         with self.scraping_conn.cursor() as cur:
-            cur.execute(update_query, row)
-
-            if cur.rowcount == 0:
-                insert_query = """
-                    INSERT INTO public.domain_discovery (
-                        disc_domain_id,
-                        disc_domain,
-                        keyword,
-                        whois_id,
-                        first_add,
-                        new_domain,
-                        age_of_registration,
-                        estimated_domain_age,
-                        commercial_registrant,
-                        likely_commercial_registrant,
-                        registrar_name,
-                        ping,
-                        tracert,
-                        domain_id,
-                        ml_piracy,
-                        site_url,
-                        site_domain,
-                        status_msg,
-                        "source",
-                        tenant,
-                        exc_domain_id,
-                        disc_domain_root,
-                        is_iptv,
-                        subdomain_host,
-                        ml_media_type_id,
-                        ml_dd_classification_id
-                    ) VALUES (
-                        %(disc_domain_id)s,
-                        %(disc_domain)s,
-                        %(keyword)s,
-                        %(whois_id)s,
-                        %(first_add)s,
-                        %(new_domain)s,
-                        %(age_of_registration)s,
-                        %(estimated_domain_age)s,
-                        %(commercial_registrant)s,
-                        %(likely_commercial_registrant)s,
-                        %(registrar_name)s,
-                        %(ping)s,
-                        %(tracert)s,
-                        %(domain_id)s,
-                        %(ml_piracy)s,
-                        %(site_url)s,
-                        %(site_domain)s,
-                        %(status_msg)s,
-                        %(source)s,
-                        %(tenant)s,
-                        %(exc_domain_id)s,
-                        %(disc_domain_root)s,
-                        %(is_iptv)s,
-                        %(subdomain_host)s,
-                        %(ml_media_type_id)s,
-                        %(ml_dd_classification_id)s
-                    )
-                """
-
-                self.logger.debug(
-                    f"[domain_discovery_from_prod] INSERT en scraping para disc_domain_id={disc_domain_id}"
-                )
-                cur.execute(insert_query, row)
-            else:
-                self.logger.debug(
-                    f"[domain_discovery_from_prod] UPDATE aplicado en scraping para disc_domain_id={disc_domain_id}"
-                )
+            cur.execute(insert_query, row)
 
     # ---------- Orquestación ----------
 
@@ -260,14 +226,24 @@ class DomainDiscoveryFromProd:
             if not rows:
                 break
 
+            batch_count = 0
             try:
                 for row in rows:
-                    self.upsert_into_scraping(row)
+                    disc_domain = row["disc_domain"]
+
+                    if self.exists_in_scraping(disc_domain):
+                        self.logger.info(
+                            f"[domain_discovery_from_prod] disc_domain ya existe en scraping, no se actualiza: {disc_domain}"
+                        )
+                    else:
+                        self.insert_into_scraping(row)
+
                     self.mark_prod_as_processed(row["disc_domain_id"])
-                    total_processed += 1
+                    batch_count += 1
 
                 self.scraping_conn.commit()
                 self.prod_conn.commit()
+                total_processed += batch_count
 
                 self.logger.info(
                     f"[domain_discovery_from_prod] Batch OK, total sincronizado hasta ahora: {total_processed}"

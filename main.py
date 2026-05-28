@@ -31,13 +31,13 @@ def main():
 
 
     # -------- From Prod
-    # domain_attributes_from_prod.DomainAttributesFromProd().run()
-    # domain_discovery_from_prod.DomainDiscoveryFromProd().run()
-    # secondary_domains_from_prod.SecondaryDomainsFromProd().run()
-    # subdomains.SubdomainsSync().run()
+    domain_attributes_from_prod.DomainAttributesFromProd().run()
+    domain_discovery_from_prod.DomainDiscoveryFromProd().run()
+    secondary_domains_from_prod.SecondaryDomainsFromProd().run()
+    subdomains.SubdomainsSync().run()
 
 
-    ## ------------ insert scripts
+    # ------------ insert scripts
     session_id.SessionIdGen().run()
     browser_profiles.BrowserProfilesSync().run()
     ad_events.AdEvents().run()
@@ -64,7 +64,7 @@ def main():
     # ------------------secondary domains
     secondary_domains.SecondaryDomainsSync().run()
     secondary_domains_html.SecondaryDomainsHtmlSync().run()
-    domain_discovery_features.DomainDiscoveryFeaturesSync().run()
+    # domain_discovery_features.DomainDiscoveryFeaturesSync().run()
 
     # ---------------- domain discovery
     domain_discovery.DomainDiscoverySync().run()
@@ -72,5 +72,21 @@ def main():
 
 
 
+import time
+import logging
+
+logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+
+WAIT_MINUTES = 10
+
 if __name__ == "__main__":
-    main()
+    while True:
+        try:
+            logging.info("Iniciando ciclo...")
+            main()
+            logging.info(f"Ciclo finalizado. Esperando {WAIT_MINUTES} minutos...")
+        except Exception as e:
+            logging.error(f"Error durante el ciclo: {e}", exc_info=True)
+            logging.info(f"Reintentando en {WAIT_MINUTES} minutos...")
+        finally:
+            time.sleep(WAIT_MINUTES * 60)
