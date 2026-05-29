@@ -121,7 +121,6 @@ class SecondaryDomainsFromProd:
                 top_referrers,
                 google_search_results,
                 retracted,
-                retracted_date,
                 decision_source,
                 updated_by
             FROM public.secondary_domains
@@ -244,7 +243,6 @@ class SecondaryDomainsFromProd:
                 top_referrers,
                 google_search_results,
                 retracted,
-                retracted_date,
                 decision_source,
                 updated_by
             ) VALUES (
@@ -306,7 +304,6 @@ class SecondaryDomainsFromProd:
                 %(top_referrers)s,
                 %(google_search_results)s,
                 %(retracted)s,
-                %(retracted_date)s,
                 %(decision_source)s,
                 %(updated_by)s
             )

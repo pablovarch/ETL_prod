@@ -30,12 +30,11 @@ from insert import browser_profiles
 def main():
 
 
-    # -------- From Prod
+    # # -------- From Prod
     domain_attributes_from_prod.DomainAttributesFromProd().run()
     domain_discovery_from_prod.DomainDiscoveryFromProd().run()
     secondary_domains_from_prod.SecondaryDomainsFromProd().run()
-    subdomains.SubdomainsSync().run()
-
+    # subdomains.SubdomainsSync().run()
 
     # ------------ insert scripts
     session_id.SessionIdGen().run()
@@ -53,9 +52,7 @@ def main():
     navigation_screenshot.NavigationScreenshots().run()
     page_tags.PageTags().run()
 
-
-
-    ## ---------------- update scripts
+    # ---------------- update scripts
 
     domain_attributes.DomainAttributesSync().run()
     # domain_features.DomainFeaturesSync().run()
@@ -64,7 +61,7 @@ def main():
     # ------------------secondary domains
     secondary_domains.SecondaryDomainsSync().run()
     secondary_domains_html.SecondaryDomainsHtmlSync().run()
-    # domain_discovery_features.DomainDiscoveryFeaturesSync().run()
+    domain_discovery_features.DomainDiscoveryFeaturesSync().run()
 
     # ---------------- domain discovery
     domain_discovery.DomainDiscoverySync().run()
