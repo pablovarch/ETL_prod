@@ -12,6 +12,7 @@ from insert import page_tags
 from insert import browser_url_sec
 from insert import session_id
 from insert import dom_content
+from insert import ia_scan_results_sync
 from update import domain_attributes
 from update import domain_features
 from update import subdomains
@@ -51,6 +52,7 @@ def main():
     dom_content.DomContentSync().run()
     navigation_screenshot.NavigationScreenshots().run()
     page_tags.PageTags().run()
+    ia_scan_results_sync.IaScanResultsSync().run()
 
     # ---------------- update scripts
 
