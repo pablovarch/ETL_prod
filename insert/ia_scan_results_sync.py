@@ -1,5 +1,5 @@
 import psycopg2
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import RealDictCursor, Json
 
 from settings import SCRAPING_DB_DSN, PROD_DB_DSN, BATCH_SIZE
 from logger import Log
@@ -12,6 +12,8 @@ class IaScanResultsSync:
     Lógica:
       - Lee filas con processed = false en scraping.ia_scan_results.
       - Hace UPSERT en prod.ia_scan_results usando ia_scan_result_id.
+      - Copia ia_scan_result_id desde scraping hacia prod.
+      - Convierte campos jsonb usando psycopg2.extras.Json.
       - Marca processed = true, processed_at = NOW() en scraping.
     """
 
@@ -91,6 +93,7 @@ class IaScanResultsSync:
     def upsert_into_prod(self, row: dict):
         """
         Inserta o actualiza una fila en prod usando ia_scan_result_id.
+        Convierte campos jsonb con Json().
         """
         self.logger.debug(
             f"[ia_scan_results_sync] Upsert prod para ia_scan_result_id={row.get('ia_scan_result_id')}"
@@ -137,27 +140,33 @@ class IaScanResultsSync:
                 %(detail_reached)s
             )
             ON CONFLICT (ia_scan_result_id) DO UPDATE SET
-                domain_id              = EXCLUDED.domain_id,
-                ad_event_id            = EXCLUDED.ad_event_id,
-                created_at             = EXCLUDED.created_at,
-                success                = EXCLUDED.success,
-                steps_taken            = EXCLUDED.steps_taken,
-                final_url              = EXCLUDED.final_url,
-                failure_mode           = EXCLUDED.failure_mode,
-                media_type             = EXCLUDED.media_type,
-                is_target_site         = EXCLUDED.is_target_site,
-                interstitial_found     = EXCLUDED.interstitial_found,
-                interstitial_bypassed  = EXCLUDED.interstitial_bypassed,
-                content_reached        = EXCLUDED.content_reached,
-                content_url            = EXCLUDED.content_url,
-                player_reached         = EXCLUDED.player_reached,
-                navigation_result      = EXCLUDED.navigation_result,
-                navigation_trace       = EXCLUDED.navigation_trace,
-                detail_reached         = EXCLUDED.detail_reached
+                domain_id             = EXCLUDED.domain_id,
+                ad_event_id           = EXCLUDED.ad_event_id,
+                created_at            = EXCLUDED.created_at,
+                success               = EXCLUDED.success,
+                steps_taken           = EXCLUDED.steps_taken,
+                final_url             = EXCLUDED.final_url,
+                failure_mode          = EXCLUDED.failure_mode,
+                media_type            = EXCLUDED.media_type,
+                is_target_site        = EXCLUDED.is_target_site,
+                interstitial_found    = EXCLUDED.interstitial_found,
+                interstitial_bypassed = EXCLUDED.interstitial_bypassed,
+                content_reached       = EXCLUDED.content_reached,
+                content_url           = EXCLUDED.content_url,
+                player_reached        = EXCLUDED.player_reached,
+                navigation_result     = EXCLUDED.navigation_result,
+                navigation_trace      = EXCLUDED.navigation_trace,
+                detail_reached        = EXCLUDED.detail_reached
         """
 
+        params = dict(row)
+
+        for json_field in ("navigation_result", "navigation_trace"):
+            if params.get(json_field) is not None:
+                params[json_field] = Json(params[json_field])
+
         with self.prod_conn.cursor() as cur:
-            cur.execute(query, row)
+            cur.execute(query, params)
 
     def mark_as_processed(self, ia_scan_result_id: int):
         """
