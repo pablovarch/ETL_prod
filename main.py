@@ -25,6 +25,13 @@ from insert import domain_attributes_from_prod
 from insert import domain_discovery_from_prod
 from insert import secondary_domains_from_prod
 from insert import browser_profiles
+# cultivo de perfiles
+from insert import warmup_domains_sync
+from insert import persona_definitions_sync
+from insert import persona_target_sites_sync
+from insert import persona_instances_sync
+from insert import persona_browser_profiles_sync
+from insert import cookie_history_sync
 
 
 
@@ -68,6 +75,15 @@ def main():
     # ---------------- domain discovery
     domain_discovery.DomainDiscoverySync().run()
     domain_discovery_html.DomainDiscoveryHtmlSync().run()
+
+    # ---------------- cultivo de perfiles
+    # Orden de las FK: cada tabla depende de las anteriores.
+    warmup_domains_sync.WarmupDomainsSync().run()
+    persona_definitions_sync.PersonaDefinitionsSync().run()
+    persona_target_sites_sync.PersonaTargetSitesSync().run()
+    persona_instances_sync.PersonaInstancesSync().run()
+    persona_browser_profiles_sync.PersonaBrowserProfilesSync().run()
+    cookie_history_sync.CookieHistorySync().run()
 
 
 
