@@ -18,7 +18,9 @@ class CookieHistorySync:
       - Marca processed = true, processed_at = NOW() en scraping.
 
     Es la tabla que más crece (cientos de filas por instancia y corrida), por
-    eso inserta y marca por batch completo en vez de fila por fila.
+    eso inserta y marca por batch completo en vez de fila por fila. Si un
+    batch falla, se reintenta fila por fila: la fila que falla se loguea y
+    queda pendiente para el próximo ciclo, sin frenar al resto.
     """
 
     COLUMNS = [
@@ -33,6 +35,11 @@ class CookieHistorySync:
         self.batch_size = batch_size or BATCH_SIZE
         self.scraping_conn = None
         self.prod_conn = None
+        # Cursor de la corrida (ultimo id leido): avanza aunque haya filas
+        # que fallen, que quedan pendientes para el próximo ciclo.
+        self.last_id = 0
+        self.synced = 0
+        self.failed = 0
 
     # ---------- Conexiones ----------
 
@@ -70,12 +77,13 @@ class CookieHistorySync:
             SELECT {", ".join(self.COLUMNS)}
             FROM public.cookie_history
             WHERE processed = false
+              AND cookie_event_id > %s
             ORDER BY cookie_event_id
             LIMIT %s
         """
 
         with self.scraping_conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(query, (limit,))
+            cur.execute(query, (self.last_id, limit))
             rows = cur.fetchall()
 
         self.logger.info(
@@ -114,6 +122,34 @@ class CookieHistorySync:
 
     # ---------- Lógica de batch ----------
 
+    def sync_rows(self, rows: list[dict]):
+        """Copia las filas a prod y las marca (sin commit)."""
+        self.insert_into_prod(rows)
+        self.mark_as_processed([row["cookie_event_id"] for row in rows])
+
+    def process_rows_one_by_one(self, rows: list[dict]):
+        """
+        Reintento de un batch que falló: cada fila en su propia transacción.
+        La que falla se loguea y queda pendiente (processed = false) para el
+        próximo ciclo, sin frenar al resto.
+        """
+        for row in rows:
+            try:
+                self.sync_rows([row])
+                self.prod_conn.commit()
+                self.scraping_conn.commit()
+                self.synced += 1
+            except (psycopg2.OperationalError, psycopg2.InterfaceError):
+                raise
+            except Exception as e:
+                self.prod_conn.rollback()
+                self.scraping_conn.rollback()
+                self.failed += 1
+                self.logger.error(
+                    f"[cookie_history_sync] Fila salteada (cookie_event_id={row.get('cookie_event_id')}), "
+                    f"queda pendiente para el próximo ciclo: {e}"
+                )
+
     def process_batch(self) -> int:
         rows = self.fetch_pending_rows(self.batch_size)
 
@@ -126,26 +162,28 @@ class CookieHistorySync:
         self.logger.info(
             f"[cookie_history_sync] Procesando batch de {len(rows)} filas"
         )
+        self.last_id = rows[-1]["cookie_event_id"]
 
         try:
-            self.insert_into_prod(rows)
-            self.mark_as_processed([row["cookie_event_id"] for row in rows])
+            self.sync_rows(rows)
 
             self.prod_conn.commit()
             self.scraping_conn.commit()
+            self.synced += len(rows)
 
             self.logger.info(
                 f"[cookie_history_sync] Batch OK ({len(rows)} filas procesadas)"
             )
+        except (psycopg2.OperationalError, psycopg2.InterfaceError):
+            # Problema de conexión: no tiene sentido reintentar fila por fila.
+            raise
         except Exception as e:
-            self.logger.exception(
-                f"[cookie_history_sync] Error en batch, rollback en ambas bases: {e}"
+            self.logger.warning(
+                f"[cookie_history_sync] Error en batch, rollback y reintento fila por fila: {e}"
             )
             self.prod_conn.rollback()
             self.scraping_conn.rollback()
-            # Se corta esta tabla hasta el próximo ciclo: si se siguiera,
-            # se volverían a leer las mismas filas pendientes indefinidamente.
-            return 0
+            self.process_rows_one_by_one(rows)
 
         return len(rows)
 
@@ -155,17 +193,14 @@ class CookieHistorySync:
         self.logger.info("===== Inicio ETL cookie_history_sync =====")
         self.connect()
 
-        total_processed = 0
         try:
-            while True:
-                processed = self.process_batch()
-                if processed == 0:
-                    break
-                total_processed += processed
+            while self.process_batch():
+                pass
 
             self.logger.info(
                 f"ETL cookie_history_sync finalizado. "
-                f"Total filas procesadas: {total_processed}"
+                f"Filas sincronizadas: {self.synced}, "
+                f"con error: {self.failed}"
             )
         finally:
             self.close()

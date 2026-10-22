@@ -16,7 +16,9 @@ class PersonaTargetSitesSync:
         fila de prod si la que llega es igual o más nueva (updated_at).
       - Marca processed = true, processed_at = NOW() en scraping SOLO si la
         fila no cambió mientras se copiaba (mismo updated_at que se leyó).
-        Si cambió, queda pendiente y se vuelve a copiar en el próximo batch.
+        Si cambió, queda pendiente y se vuelve a copiar en el próximo ciclo.
+      - Si un batch falla, se reintenta fila por fila: la fila que falla se
+        loguea y queda pendiente para el próximo ciclo, sin frenar al resto.
 
     En scraping, un trigger vuelve a poner processed = false (y actualiza
     updated_at) cada vez que el cultivo modifica una fila.
@@ -27,6 +29,12 @@ class PersonaTargetSitesSync:
         self.batch_size = batch_size or BATCH_SIZE
         self.scraping_conn = None
         self.prod_conn = None
+        # Cursor de la corrida (ultima clave leida): avanza aunque haya filas
+        # que fallen o cambien, que quedan pendientes para el próximo ciclo.
+        self.last_key = (0, 0)
+        self.synced = 0
+        self.changed = 0
+        self.failed = 0
 
     # ---------- Conexiones ----------
 
@@ -69,12 +77,13 @@ class PersonaTargetSitesSync:
                 updated_at
             FROM public.persona_target_sites
             WHERE processed = false
+              AND (persona_id, warmup_domain_id) > %s
             ORDER BY persona_id, warmup_domain_id
             LIMIT %s
         """
 
         with self.scraping_conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(query, (limit,))
+            cur.execute(query, (self.last_key, limit))
             rows = cur.fetchall()
 
         self.logger.info(
@@ -138,6 +147,36 @@ class PersonaTargetSitesSync:
 
     # ---------- Lógica de batch ----------
 
+    def sync_row(self, row: dict) -> bool:
+        """Copia una fila a prod y la marca. Devuelve False si cambió durante la copia."""
+        self.upsert_into_prod(row)
+        return self.mark_as_processed(row)
+
+    def process_rows_one_by_one(self, rows: list[dict]):
+        """
+        Reintento de un batch que falló: cada fila en su propia transacción.
+        La que falla se loguea y queda pendiente (processed = false) para el
+        próximo ciclo, sin frenar al resto.
+        """
+        for row in rows:
+            try:
+                if self.sync_row(row):
+                    self.synced += 1
+                else:
+                    self.changed += 1
+                self.prod_conn.commit()
+                self.scraping_conn.commit()
+            except (psycopg2.OperationalError, psycopg2.InterfaceError):
+                raise
+            except Exception as e:
+                self.prod_conn.rollback()
+                self.scraping_conn.rollback()
+                self.failed += 1
+                self.logger.error(
+                    f"[persona_target_sites_sync] Fila salteada (persona_id={row.get('persona_id')}, warmup_domain_id={row.get('warmup_domain_id')}), "
+                    f"queda pendiente para el próximo ciclo: {e}"
+                )
+
     def process_batch(self) -> int:
         rows = self.fetch_pending_rows(self.batch_size)
 
@@ -150,36 +189,35 @@ class PersonaTargetSitesSync:
         self.logger.info(
             f"[persona_target_sites_sync] Procesando batch de {len(rows)} filas"
         )
+        self.last_key = (rows[-1]["persona_id"], rows[-1]["warmup_domain_id"])
 
         try:
             changed = 0
             for row in rows:
-                self.upsert_into_prod(row)
-                if not self.mark_as_processed(row):
+                if not self.sync_row(row):
                     changed += 1
 
             self.prod_conn.commit()
             self.scraping_conn.commit()
+            self.synced += len(rows) - changed
+            self.changed += changed
 
             self.logger.info(
                 f"[persona_target_sites_sync] Batch OK ({len(rows)} filas procesadas"
                 + (f", {changed} cambiaron durante la copia y quedan pendientes" if changed else "")
                 + ")"
             )
+        except (psycopg2.OperationalError, psycopg2.InterfaceError):
+            # Problema de conexión: no tiene sentido reintentar fila por fila.
+            raise
         except Exception as e:
-            self.logger.exception(
-                f"[persona_target_sites_sync] Error en batch, rollback en ambas bases: {e}"
+            self.logger.warning(
+                f"[persona_target_sites_sync] Error en batch, rollback y reintento fila por fila: {e}"
             )
             self.prod_conn.rollback()
             self.scraping_conn.rollback()
-            # Se corta esta tabla hasta el próximo ciclo: si se siguiera,
-            # se volverían a leer las mismas filas pendientes indefinidamente.
-            return 0
+            self.process_rows_one_by_one(rows)
 
-        if changed == len(rows):
-            # Todas cambiaron mientras se copiaban (el cultivo las esta
-            # actualizando ahora): se reintenta en el próximo ciclo.
-            return 0
         return len(rows)
 
     # ---------- Punto de entrada ----------
@@ -188,17 +226,15 @@ class PersonaTargetSitesSync:
         self.logger.info("===== Inicio ETL persona_target_sites_sync =====")
         self.connect()
 
-        total_processed = 0
         try:
-            while True:
-                processed = self.process_batch()
-                if processed == 0:
-                    break
-                total_processed += processed
+            while self.process_batch():
+                pass
 
             self.logger.info(
                 f"ETL persona_target_sites_sync finalizado. "
-                f"Total filas procesadas: {total_processed}"
+                f"Filas sincronizadas: {self.synced}, "
+                f"cambiaron durante la copia: {self.changed}, "
+                f"con error: {self.failed}"
             )
         finally:
             self.close()
