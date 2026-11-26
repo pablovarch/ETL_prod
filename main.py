@@ -13,6 +13,8 @@ from insert import browser_url_sec
 from insert import session_id
 from insert import dom_content
 from insert import ia_scan_results_sync
+from insert import scan_orchestration_isp_dedicated
+from insert import scan_orchestration_cultivated
 from update import domain_attributes
 from update import domain_features
 from update import subdomains
@@ -60,6 +62,8 @@ def main():
     navigation_screenshot.NavigationScreenshots().run()
     page_tags.PageTags().run()
     ia_scan_results_sync.IaScanResultsSync().run()
+    scan_orchestration_isp_dedicated.ScanOrchestrationIspDedicated().run()
+    scan_orchestration_cultivated.ScanOrchestrationCultivated().run()
 
     # ---------------- update scripts
 
